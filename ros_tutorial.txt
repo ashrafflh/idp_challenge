@@ -1,0 +1,312 @@
+Node: a program that can use ROS functionalities such as communication
+run node: ros2 run pacakge_name node_name
+
+rqt_graph: see running nodes, nodes can communicate with other nodes using topics
+
+Workspace: a folder, organize code with packages, build and use custom code and nodes, share code with a team
+sudo apt install python3-colcon-common-extensions: install build tool for ros2
+cd /usr/share/colcon_argcomplete/hook/
+source the bash script to activate autocompletion for colcon
+create workspace: mkdir ros2_ws && cd ros2_ws
+mkdir src (here we write ros nodes)
+colcon build
+source dir_to_ros_ws/install/setup.bash (to be able to use the custom nodes of the workspace)
+
+ROS python package: organizes nodes in packages
+cd ros_ws/src
+ros2 pkg create package_name --build-type ament_python (or ament_cmake) --dependencies rclpy (python lib for ros2)
+ament is the build system, colcon is the build tool
+use VScode to work with the nodes in the package
+package.xml: metadata of the package
+setup.cfg: dont touch
+setup.py: similar to package.xml
+package_name_folder: we create ros node here
+cd ros_ws
+colcon build -> build the package, we need pip3 install setuptools==58.2.0 if we have issues here
+
+ROS Python Node:
+cd ros_ws/src/package_name/package_name
+touch node.py && chmod +x node.py
+install ros micrososft extension for VScode
++++++++++++++++++++++++
+#!/usr/bin/env python3
+import rclpy
+from rclpy.node import Node
+
+# create node (we can run multiple nodes from the same program)
+class MyNode(Node):
+	
+	def __init__(self):
+		super().__init__("Node_name")
+		self.counter_ = 0
+		self.create_timer(1.0, self.timer_callback) # run every one sec
+		
+	def timer_callback(self):
+		self.get_logger().info("Hello" + str(self.counter_)	#  write logs in ROS	
+		self.counter_ += 1
+		
+def main(args=None):
+	# initialize ros 2 communication
+	rclpy.init(args=args)
+	
+	# create node (we can run multiple nodes from the same program)
+	node = MyNode()
+	rclpy.spin(node) # node kept alive infinitely
+	
+	
+	
+	rclpy.shutdown()
+	
+if __name__ = '__main__':
+	main()
++++++++++++++++++++++++++
+Install node: in setup.py, entry_points, console_scripts: "test_node = package_name.node_file_name:main"
+in ros_ws: colcon build
+source dir_to_ros_ws/install/setup.bash
+ros2 run package_name test_node
+colcon build --symlink-install: execute python scripts when changed without building the whole package
+ros2 node list: see running nodes
+ros2 node info node_name
+
+
+ROS Topic:
+communication between nodes. A node is a publisher, the other is subscribed to the topic.
+ros topic list
+each topic has a data type such as string
+ros2 topic info topic_name
+ros2 interface show std_msg/msg/String
+ros2 topic echo /topic_name
+topics are anonymous, a node does not know what are the other nodes on that topic
+
+ROS Publisher with Python:
+touch draw_circle.py: control turtle to make it draw a circle
+chmod +x
++++++++++++++++++++++++
+#!/usr/bin/env python3
+import rclpy
+from rclpy.node import Node
+from geometry_msgs.msg improt Twist
+# create node (we can run multiple nodes from the same program)
+class DrawCircleNode(Node):
+	
+	def __init__(self):
+		super().__init__("draw_circle")
+		self.cmd_vel_pub_ = self.create_publisher(Twist, "/turtle1/cmd_vel", 10) # add # depend in package.xml: <depend>geometry_msgs<depend>
+# <depend>turtlesim</depend>
+		self.get_logger().info("DrawCircle node started")
+		self.timer = self.create_timer(1.0, self.send_velocity_callback) # run every one sec
+		
+	def send_velocity_callback(self):
+		msg = Twist()
+		msg.linear.x = 2.0
+		msg.angular.z = 1.0
+		self.cmd_vel_pub_.publish(msg)
+		self.get_logger().info("Hello" + str(self.counter_)	#  write logs in ROS	
+		
+def main(args=None):
+	# initialize ros 2 communication
+	rclpy.init(args=args)
+	
+	# create node (we can run multiple nodes from the same program)
+	node = DrawCircleNode()
+	rclpy.spin(node) # node kept alive infinitely
+	rclpy.shutdown()
+	
++++++++++++++++++++++++++
+setup.py: console_scripts: "draw_circle = package_name.draw_circle:main"
+colcon build --symlink-install
+
+
+ROS Subscriber with Python:
+touch pose_subscriber.py
+chmod +x
++++++++++++++++++++++++
+#!/usr/bin/env python3
+import rclpy
+from rclpy.node import Node
+from turtlesim.msg improt Pose
+# create node (we can run multiple nodes from the same program)
+class PoseSubscriberNode(Node):
+	
+	def __init__(self):
+		super().__init__("pose_subscriber")
+		self.pose_subscriber = self.create_subscription(Pose, "/turtle1/pose", self.pose_callback, 10)
+		self.get_logger().info("Pose Subscriber node started")
+
+		
+	def pose_callback(self, msg: Pose):
+		self.get_logger().info(str(msg))	#  write logs in ROS	
+		
+		
+def main(args=None):
+	# initialize ros 2 communication
+	rclpy.init(args=args)
+	
+	# create node (we can run multiple nodes from the same program)
+	node = PoseSubscriberNode()
+	rclpy.spin(node) # node kept alive infinitely
+	rclpy.shutdown()
+	
++++++++++++++++++++++++++
+setup.py: console_scripts: "pose_subscriber = package_name.pose_subscriber:main"
+colcon build --symlink-install
+
+
+Closed Loop system with publisher and subscriber:
+one node containing both sub and publisher in turtlesim which reads pose and controls cmd_vek
+touch turtle_controller.py
+chmod +x
++++++++++++++++++++++++
+#!/usr/bin/env python3
+import rclpy
+from rclpy.node import Node
+from turtlesim.msg import Pose
+from geomertry_msgs.msg import Twist
+# create node (we can run multiple nodes from the same program)
+class TurtleControllerNode(Node):
+	
+	def __init__(self):
+		super().__init__("turtle_controller")
+		self.get_logger().info("TurtleController has been started")
+		self.cmd_vel_pub_ = self.create_publisher(Twist, "/turtle1/cmd_vel", 10)
+		self.pose_subscriber_ = self.create_subscription(Pose, "/turtle1/pose", self.pose_callback, 10)
+		
+
+		
+	def pose_callback(self, pose: Pose):
+		cmd = Twist()
+		if pose.x > 9.0 or pose.x < 2.0or pose.y > 9.0 or pose.y < 2.0: # turn when approaching the  border of the map
+			cmd.linear.x = 1.0
+			cmd.angular.z = 0.9
+		else:
+			cmd.linear.x = 5.0
+			cmd.angular.z = 0.0
+		
+		self.cmd_vel_publisher_.publish(cmd)
+		
+		self.get_logger().info(str(msg))	#  write logs in ROS	
+		
+		
+def main(args=None):
+	# initialize ros 2 communication
+	rclpy.init(args=args)
+	
+	# create node (we can run multiple nodes from the same program)
+	node = TurtleControllerNode()
+	rclpy.spin(node) # node kept alive infinitely
+	rclpy.shutdown()
+	
++++++++++++++++++++++++++
+setup.py consle scriots -> turtle_controller = package_name.turtle_controller:main
+colcon build --symlink-install
+
+source package
+ros2 run package_name turtle_controller
+
+
+
+ROS 2 Service:
+different nodes, we want client server interaction, topics cant be used -> services.
+ros2 run demo_nodes_cpp add_two_ints_server
+rqt_graph not useful for services.
+ros2 service list
+for a node we have a sets of services
+ros2 service type /add_two_ints
+ros2 interface show type_of_service
+ros2 service call /add_two_ints type "{'a': 2, 'b': 5}" -> start client from the terminal
+for a service we have only one server but many clients
+services usually used for computation or change of settings of the robot
+ros2 run turtlesim turtlesim_node
+ros2 service list
+change color of trace with /turtle1/set_pen
+ros2 service type turtle1/set_pen
+ros2 interface show type_of_service
+ros2 service call /turtle1/set_pen turtlesim/srv/SetPen "{'r': 0, 'g': 5, ''b:0 ,...}"
+
+
+
+ROS 2 Service Client with Python:
+our service will change the pen of the turtle depending on where the turtle is
+in the turtle_controller.py
++++++++++++++++++++++++
+#!/usr/bin/env python3
+import rclpy
+from rclpy.node import Node
+from turtlesim.msg import Pose
+from geomertry_msgs.msg import Twist
+from turlesim.srv import SetPen
+
+# create node (we can run multiple nodes from the same program)
+class TurtleControllerNode(Node):
+	
+	def __init__(self):
+		super().__init__("turtle_controller")
+		self.get_logger().info("TurtleController has been started")
+		self.cmd_vel_pub_ = self.create_publisher(Twist, "/turtle1/cmd_vel", 10)
+		self.pose_subscriber_ = self.create_subscription(Pose, "/turtle1/pose", self.pose_callback, 10)
+		
+
+		
+	def pose_callback(self, pose: Pose):
+		cmd = Twist()
+		if pose.x > 9.0 or pose.x < 2.0 or pose.y > 9.0 or pose.y < 2.0: # turn when approaching the  border of the map
+			cmd.linear.x = 1.0
+			cmd.angular.z = 0.9
+		else:
+			cmd.linear.x = 5.0
+			cmd.angular.z = 0.0
+		
+		self.cmd_vel_publisher_.publish(cmd)
+		
+		if pos.x > 5.5 and self.previous_x_ <= 5.5:
+			self.previous_x = pose.x
+			self.call_set_pen_service(255,0,0,3,0)
+		elif pos.x < 5.5 and self.previous_x_ >= 5.5:
+			self.previous_x = pose.x
+			self.call_set_pen_service(0,255,0,3,0)	
+		
+	def call_set_pen_service(self, r,g,b,width,off):
+		client = self.create_client(SetPen, "/turtle1/set_pen")
+		while not client.wait_for_service(1.0):
+			self.get_logger().warn("Waiting for service")
+		request = SetPen.Request()
+		request.r = r
+		...
+		future = client.call_async(request) # with async it will return immediately
+		future.add_done_callback(partial(self.call_set_pen))
+		
+	def callback_set_pen(self, future):
+		try:
+			response = future.result()
+		except Exception as e:
+			self.get_logger().error("Service call failed: %r" % (e,))
+		
+			
+def main(args=None):
+	# initialize ros 2 communication
+	rclpy.init(args=args)
+	
+	# create node (we can run multiple nodes from the same program)
+	node = TurtleControllerNode()
+	rclpy.spin(node) # node kept alive infinitely
+	rclpy.shutdown()
+	
++++++++++++++++++++++++++
+
+ros2 topic hz /turtle1/pose -> frequence
+
+
+
+
+
+
+-------------------------------------------
+Coding Challenge:
+Odometry is a way of tracking your robot’s position on the field accurately.
+Extended Kalman Filters (EKFs) are a type of nonlinear filter used in control systems and signal processing to estimate the state of a dynamic system from a series of noisy measurements. 
+
+
+
+
+
+
