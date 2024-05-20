@@ -1,6 +1,5 @@
 import rclpy
 from rclpy.node import Node
-from nav_msgs.msg import Odometry
 import numpy as np
 from sensor_msgs.msg import NavSatFix
 from std_msgs.msg import String
@@ -18,7 +17,7 @@ class JumpDetection(Node): # create a class for the jump_detection node
         # Create subscriber with its callback to the topic where the position data from GPS is being written
         self.gps_pos_sub = self.create_subscription(
             NavSatFix,
-            '/gps/fix',
+            '/gps/jammed',
             self.gps_pos_callback,
             10
         )
@@ -32,6 +31,7 @@ class JumpDetection(Node): # create a class for the jump_detection node
 
     
     def gps_pos_callback(self, pos: NavSatFix):
+        self.get_logger().info('AAA...')
         current_pos = self.get_position_from_gps_msg(pos)
         if self.previous_gps_pos is not None:
             self.detect_jumps_gps(current_pos)
@@ -39,8 +39,9 @@ class JumpDetection(Node): # create a class for the jump_detection node
 
     # a function to read position data from GPS
     def get_position_from_gps_msg(self, pos: NavSatFix):
-        # currently using latitude and longitude only.
-        return np.array([pos.latitude, pos.longitude])
+        # currently using latitude, longitude and altitude only.
+        return np.array([pos.latitude, pos.longitude, pos.altitude
+                         ])
 
     # a function to detect the jumps in the position
     def detect_jumps_gps(self, current_pos):
