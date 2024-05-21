@@ -31,7 +31,6 @@ class JumpDetection(Node): # create a class for the jump_detection node
 
     
     def gps_pos_callback(self, pos: NavSatFix):
-        self.get_logger().info('AAA...')
         current_pos = self.get_position_from_gps_msg(pos)
         if self.previous_gps_pos is not None:
             self.detect_jumps_gps(current_pos)

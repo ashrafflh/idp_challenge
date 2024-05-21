@@ -33,6 +33,21 @@ ros2 pkg create jump_detection --build-type ament_python --dependencies rclpy
 We write the node in the jump_detection.py file in the jump_detection package, documentation to the code can be found in the source .py file.
 The node currently monitors and detects jumps in the latitude and longitude data provided from the /gps/fix topic, as this is the topic that will be mutated by MOBSTA. The same code logic can be used to work on other position data topics such as /odometry/local and /odometry/global.
 
+## Testing with a jammer node
+
+We write another node in the jump_detection package to test the jump detection node.
+The node is called jammer, reads GPS positional data from /gps/fix, randomly modifies it to simulate a jamming attack, and published the jammed data to /gps/jammed. The jump detection node will detect jumps using the /gps/jammed topic.
+
+We play the data from the bag:
+ros2 bag play rosbag2_2024_04_24-12_23_04_0.db3
+
+Here is a screenshot of the jump_detection topic when the jump detection and the jammer nodes are running.
+
+![Main Interface](screenshots/jump_detection_topic.png)
+
+
+
+
 ## Testing with MOBSTA
 
 We download the repo
